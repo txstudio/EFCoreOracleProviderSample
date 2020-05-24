@@ -1,7 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
-using System.Text.Json.Serialization;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ConsoleApp
@@ -12,7 +13,10 @@ namespace ConsoleApp
         {
             using(OracleContext _context = new OracleContext())
             {
-                var _items = await _context.PRODUCTS.ToListAsync();
+                var _items = await _context.PRODUCTS
+                                            .Take(2)
+                                            .ToListAsync();
+
                 var _json = JsonConvert.SerializeObject(_items, Formatting.Indented);
 
                 Console.WriteLine(_json);
@@ -27,11 +31,19 @@ namespace ConsoleApp
     {
         const string connectionString = "Data Source=localhost;User Id=system;Password=oracle";
 
+        public static readonly ILoggerFactory MyLoggerFactory
+            = LoggerFactory.Create(builder => { builder.AddConsole(); });
+
         public DbSet<PRODUCT> PRODUCTS { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseOracle(connectionString);
+            optionsBuilder
+                .UseLoggerFactory(MyLoggerFactory)
+                .UseOracle(connectionString, option => {
+                    //specify Oracle database version
+                    option.UseOracleSQLCompatibility("11");
+                });
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
